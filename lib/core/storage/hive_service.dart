@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:hive_ce_flutter/hive_flutter.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../config/app_config.dart';
 
@@ -20,16 +22,36 @@ class HiveService {
   static final instance = HiveService._();
 
   static const _keyName = 'mawkib_hive_key_v1';
-  static const _secure = FlutterSecureStorage(
+  // final لا const: المُنشئ الثابت غير متاح في كل إصدارات الحزمة
+  static final _secure = FlutterSecureStorage(
     iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
   );
 
   bool _ready = false;
   bool get isReady => _ready;
 
+  /// الصناديق التي تعذّر فتحها فأُعيد إنشاؤها، أي **فُقد محتواها المخزّن**.
+  ///
+  /// نحتفظ بالقائمة ولا نبتلع الحدث بصمت: التطبيق يعرف أن عليه إعادة
+  /// المزامنة من السيرفر، ويستطيع إخبار المستخدم بدل أن تختفي بياناته
+  /// دون أثر.
+  final List<String> recoveredBoxes = [];
+
+  /// هل فُقدت بيانات محلية في آخر إقلاع؟
+  bool get didLoseLocalData => recoveredBoxes.isNotEmpty;
+
   Future<void> init() async {
     if (_ready) return;
-    await Hive.initFlutter();
+
+    // initFlutter يكفي عادةً، لكنه يفشل على بعض الأجهزة والإصدارات.
+    // نجرّب مسار التخزين الصريح أولاً ثم نرتدّ إليه.
+    try {
+      final dir = await getApplicationSupportDirectory();
+      Hive.init('${dir.path}/mawkib_zahra_db');
+    } catch (_) {
+      await Hive.initFlutter('mawkib_zahra_db');
+    }
+
     final cipher = HiveAesCipher(await _encryptionKey());
 
     for (final name in const [
@@ -41,11 +63,49 @@ class HiveService {
       AppConfig.boxStats,
       AppConfig.boxOutbox,
     ]) {
-      await Hive.openBox<String>(name, encryptionCipher: cipher);
+      await _openEncrypted(name, cipher);
     }
+
     // صندوق الإعدادات غير مشفّر: لا يحوي بيانات حساسة ويُقرأ قبل التشفير
-    await Hive.openBox<dynamic>(AppConfig.boxSettings);
+    await _openSettings();
     _ready = true;
+  }
+
+  /// يفتح صندوقاً مشفّراً، ويتعافى من التلف بإعادة الإنشاء **مع تسجيل الفقد**.
+  ///
+  /// الفشل الشائع سببه تغيّر مفتاح التشفير (مسح بيانات التطبيق مثلاً) أو
+  /// ملف تالف. في الحالتين لا سبيل لقراءة المحتوى، فإعادة الإنشاء هي الحل
+  /// الوحيد لتفادي تعطّل التطبيق عند الإقلاع.
+  ///
+  /// ⚠️ استثناء مقصود: صندوق **الطابور** (outbox) يحوي كتابات لم تُرفع بعد،
+  /// وحذفه يعني ضياعها نهائياً. لذلك نعيد رمي الخطأ بدل حذفه صامتين، فيظهر
+  /// العطل بوضوح بدل أن يبتلع عمل المستخدم.
+  Future<void> _openEncrypted(String name, HiveAesCipher cipher) async {
+    try {
+      await Hive.openBox<String>(name, encryptionCipher: cipher);
+      return;
+    } catch (e) {
+      if (name == AppConfig.boxOutbox) rethrow;
+    }
+    try {
+      await Hive.deleteBoxFromDisk(name);
+      await Hive.openBox<String>(name, encryptionCipher: cipher);
+      recoveredBoxes.add(name);
+    } catch (_) {
+      // آخر محاولة: صندوق في الذاكرة فقط، فيعمل التطبيق ولا يتعطّل
+      await Hive.openBox<String>(name, bytes: Uint8List(0));
+      recoveredBoxes.add(name);
+    }
+  }
+
+  Future<void> _openSettings() async {
+    try {
+      await Hive.openBox<dynamic>(AppConfig.boxSettings);
+    } catch (_) {
+      await Hive.deleteBoxFromDisk(AppConfig.boxSettings);
+      await Hive.openBox<dynamic>(AppConfig.boxSettings);
+      recoveredBoxes.add(AppConfig.boxSettings);
+    }
   }
 
   Future<List<int>> _encryptionKey() async {
@@ -116,7 +176,7 @@ class HiveService {
         AppConfig.boxDonations,
         AppConfig.boxPosts,
         AppConfig.boxStories,
-      ].fold(0, (sum, n) => sum + box(n).length);
+      ].fold<int>(0, (sum, n) => sum + box(n).length);
 
   /// مسح كل البيانات المخزّنة محلياً — لا يمسّ طابور المزامنة
   Future<void> clearCache() async {

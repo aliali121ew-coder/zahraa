@@ -19,7 +19,10 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.12.2
+  # قيد موسّع عمداً: بيئة التطوير لدى صاحب المشروع على Flutter 3.38 / Dart
+  # 3.10، وبيئة البناء على 3.44 / 3.12. الكود لا يستخدم أي ميزة لغوية أحدث
+  # من Dart 3.10، فتوسيع القيد يجعل المشروع يبني في البيئتين بلا تعديل.
+  sdk: ^3.10.0
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -87,4 +90,12 @@ flutter:
         - asset: assets/fonts/IBMPlexSansArabic-SemiBold.ttf
           weight: 600
         - asset: assets/fonts/IBMPlexSansArabic-Bold.ttf
+          weight: 700
+    # خط العرض: نسخي كلاسيكي للعناوين والأسماء والعلامة. التباين بينه وبين
+    # خط الواجهة هو أساس الإحساس الاحترافي — خط واحد لكل شيء يبدو قالباً جاهزاً.
+    - family: Amiri
+      fonts:
+        - asset: assets/fonts/Amiri-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Amiri-Bold.ttf
           weight: 700

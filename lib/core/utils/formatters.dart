@@ -10,17 +10,36 @@ abstract final class Fmt {
   static final _money = NumberFormat('#,###', 'ar');
   static final _plain = NumberFormat('#,###', 'ar');
 
+  /// يوحّد نظام الأرقام إلى اللاتيني (0-9).
+  ///
+  /// **لماذا هذا ضروري:** حزمة intl تشتق نظام الأرقام من بيانات اللغة، فتظهر
+  /// المبالغ بأرقام لاتينية والتواريخ بأرقام عربية-هندية على نفس الشاشة،
+  /// وتختلف النتيجة بين أندرويد وويندوز. فرض نظام واحد صراحةً يجعل العرض
+  /// متطابقاً على كل جهاز.
+  ///
+  /// للتبديل إلى الأرقام العربية-الهندية (٠١٢٣): اعكس اتجاه الاستبدال هنا،
+  /// وهو التغيير الوحيد المطلوب في التطبيق كله.
+  static String _digits(String s) {
+    const arabicIndic = '٠١٢٣٤٥٦٧٨٩';
+    var out = s;
+    for (var i = 0; i < 10; i++) {
+      out = out.replaceAll(arabicIndic[i], '$i');
+    }
+    // الفاصلة العربية والفاصلة العشرية العربية
+    return out.replaceAll('٬', ',').replaceAll('٫', '.');
+  }
+
   /// مبلغ مع العملة: «١٢٠,٠٠٠ د.ع»
   static String money(num? v) {
     if (v == null) return '—';
-    return '${_money.format(v)} ${AppConfig.currency}';
+    return '${_digits(_money.format(v))} ${AppConfig.currency}';
   }
 
   /// مبلغ بلا عملة
-  static String amount(num? v) => v == null ? '—' : _money.format(v);
+  static String amount(num? v) => v == null ? '—' : _digits(_money.format(v));
 
   /// عدد صحيح: «١,٢٤٠»
-  static String count(num? v) => v == null ? '٠' : _plain.format(v);
+  static String count(num? v) => v == null ? '0' : _digits(_plain.format(v));
 
   /// مبلغ مختصر للكروت الضيقة: «١٢٠ ألف» / «٢.٤ مليون»
   static String moneyShort(num? v) {
@@ -39,22 +58,22 @@ abstract final class Fmt {
 
   static String _trim(double d) {
     final s = d.toStringAsFixed(1);
-    return NumberFormat('#,##0.#', 'ar').format(double.parse(s));
+    return _digits(NumberFormat('#,##0.#', 'ar').format(double.parse(s)));
   }
 
   /// تاريخ: «٣ آب ٢٠٢٦»
   static String date(DateTime? d) =>
-      d == null ? '—' : DateFormat('d MMMM y', 'ar').format(d.toLocal());
+      d == null ? '—' : _digits(DateFormat('d MMMM y', 'ar').format(d.toLocal()));
 
   /// تاريخ قصير: «٢٠٢٦/٠٨/٠٣»
   static String dateShort(DateTime? d) =>
-      d == null ? '—' : DateFormat('yyyy/MM/dd', 'ar').format(d.toLocal());
+      d == null ? '—' : _digits(DateFormat('yyyy/MM/dd', 'ar').format(d.toLocal()));
 
   /// تاريخ ووقت للطباعة: «٢٠٢٦/٠٨/٠٣ — ١١:٤٥ م»
   static String dateTime(DateTime? d) => d == null
       ? '—'
-      : '${DateFormat('yyyy/MM/dd', 'ar').format(d.toLocal())} — '
-          '${DateFormat('h:mm a', 'ar').format(d.toLocal())}';
+      : '${_digits(DateFormat('yyyy/MM/dd', 'ar').format(d.toLocal()))} — '
+          '${_digits(DateFormat('h:mm a', 'ar').format(d.toLocal()))}';
 
   /// وقت نسبي للمنشورات: «قبل ٣ ساعات»
   static String relative(DateTime? d) {

@@ -59,3 +59,6 @@ build/symbols/
 
 android/keys/
 android/key.properties
+
+# صور فشل المقارنة الذهبية
+test/goldens/failures/

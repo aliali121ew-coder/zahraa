@@ -43,7 +43,9 @@ class HomePage extends ConsumerWidget {
           slivers: [
             SliverAppBar(
               pinned: true,
-              backgroundColor: theme.scaffoldBackgroundColor.withValues(alpha: 0.86),
+              backgroundColor: theme.scaffoldBackgroundColor.withValues(
+                alpha: 0.86,
+              ),
               surfaceTintColor: Colors.transparent,
               titleSpacing: 16,
               title: Row(
@@ -70,6 +72,42 @@ class HomePage extends ConsumerWidget {
                 ],
               ),
               actions: [
+                // شارة صريحة حين تكون البيانات من المخزن المحلي: لا نكذب
+                // على المستخدم بأن الأرقام محدّثة وهو بلا اتصال
+                if (ref.watch(dataIsStaleProvider))
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 9,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.pending.withValues(alpha: 0.16),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.cloud_off_rounded,
+                            size: 13,
+                            color: AppColors.pending,
+                          ),
+                          SizedBox(width: 5),
+                          Text(
+                            'بلا اتصال',
+                            style: TextStyle(
+                              fontFamily: AppTheme.fontFamily,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.pending,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 IconButton(
                   tooltip: 'تبديل الوضع الليلي',
                   icon: Icon(
@@ -77,7 +115,8 @@ class HomePage extends ConsumerWidget {
                         ? Icons.light_mode_outlined
                         : Icons.dark_mode_outlined,
                   ),
-                  onPressed: () => ref.read(themeModeProvider.notifier).toggle(),
+                  onPressed: () =>
+                      ref.read(themeModeProvider.notifier).toggle(),
                 ),
               ],
             ),
@@ -101,32 +140,38 @@ class HomePage extends ConsumerWidget {
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                 sliver: SliverToBoxAdapter(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Expanded(
-                        child: CountCard(
-                          label: 'عدد المتبرعين',
-                          icon: Icons.volunteer_activism_outlined,
-                          count: stats.valueOrNull?.donorsCount ?? 0,
-                          loading: stats.isLoading,
-                          onTap: () => context.go('/contributors'),
+                  // IntrinsicHeight ضروري هنا: داخل SliverToBoxAdapter يكون
+                  // ارتفاع الصف غير محدود، فلا يعمل CrossAxisAlignment.stretch
+                  // ويظهر خطأ تخطيط. هذا يجعل الكارتين متساويي الارتفاع دائماً
+                  // مهما اختلف محتواهما (وجود شارة «متأخر» من عدمه).
+                  child: IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(
+                          child: CountCard(
+                            label: 'عدد المتبرعين',
+                            icon: Icons.volunteer_activism_outlined,
+                            count: stats.valueOrNull?.donorsCount ?? 0,
+                            loading: stats.isLoading,
+                            onTap: () => context.go('/contributors'),
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: CountCard(
-                          label: 'عدد المشتركين',
-                          icon: Icons.groups_2_outlined,
-                          count: stats.valueOrNull?.subscribersCount ?? 0,
-                          loading: stats.isLoading,
-                          badge: (stats.valueOrNull?.overdueCount ?? 0) > 0
-                              ? '${Fmt.count(stats.valueOrNull!.overdueCount)} متأخر'
-                              : null,
-                          onTap: () => context.go('/contributors'),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: CountCard(
+                            label: 'عدد المشتركين',
+                            icon: Icons.groups_2_outlined,
+                            count: stats.valueOrNull?.subscribersCount ?? 0,
+                            loading: stats.isLoading,
+                            badge: (stats.valueOrNull?.overdueCount ?? 0) > 0
+                                ? '${Fmt.count(stats.valueOrNull!.overdueCount)} متأخر'
+                                : null,
+                            onTap: () => context.go('/contributors'),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -136,21 +181,16 @@ class HomePage extends ConsumerWidget {
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(16, 26, 16, 10),
               sliver: SliverToBoxAdapter(
-                child: Row(
-                  children: [
-                    const Icon(Icons.emoji_events_outlined,
-                        size: 19, color: AppColors.gold),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text('أعلى المتبرعين',
-                          style: theme.textTheme.titleLarge),
-                    ),
-                    if (donors.hasValue && donors.value!.length > _topDonorsLimit)
-                      TextButton(
-                        onPressed: () => context.go('/contributors/donors'),
-                        child: const Text('عرض الكل'),
-                      ),
-                  ],
+                child: SectionHeader(
+                  title: 'أعلى المتبرعين',
+                  icon: Icons.emoji_events_outlined,
+                  action:
+                      donors.hasValue && donors.value!.length > _topDonorsLimit
+                      ? TextButton(
+                          onPressed: () => context.go('/contributors/donors'),
+                          child: const Text('عرض الكل'),
+                        )
+                      : null,
                 ),
               ),
             ),
@@ -185,7 +225,8 @@ class HomePage extends ConsumerWidget {
               },
             ),
 
-            const SliverToBoxAdapter(child: SizedBox(height: 28)),
+            // مساحة تكفي لتجاوز شريط التنقّل العائم فلا يختفي آخر كارت خلفه
+            const SliverToBoxAdapter(child: SizedBox(height: 108)),
           ],
         ),
       ),
@@ -206,16 +247,20 @@ class HomePage extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('تفصيل المبلغ الكلي',
-                  style: Theme.of(context).textTheme.titleLarge),
+              Text(
+                'تفصيل المبلغ الكلي',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
               const SizedBox(height: 18),
               _BreakdownRow(label: 'الاشتراكات', value: s.subscriptionsTotal),
               const SizedBox(height: 12),
-              _BreakdownRow(
-                  label: 'التبرعات النقدية', value: s.donationsTotal),
+              _BreakdownRow(label: 'التبرعات النقدية', value: s.donationsTotal),
               const Divider(height: 28),
               _BreakdownRow(
-                  label: 'المجموع', value: s.totalAmount, emphasize: true),
+                label: 'المجموع',
+                value: s.totalAmount,
+                emphasize: true,
+              ),
               if (s.inKindCount > 0) ...[
                 const SizedBox(height: 18),
                 Container(
@@ -226,8 +271,11 @@ class HomePage extends ConsumerWidget {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.inventory_2_outlined,
-                          size: 18, color: AppColors.teal),
+                      const Icon(
+                        Icons.inventory_2_outlined,
+                        size: 18,
+                        color: AppColors.teal,
+                      ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
@@ -284,7 +332,9 @@ class _BreakdownRow extends StatelessWidget {
                 fontFamily: AppTheme.fontFamily,
                 fontSize: emphasize ? 19 : 16,
                 fontWeight: emphasize ? FontWeight.w700 : FontWeight.w600,
-                color: emphasize ? AppColors.gold : theme.textTheme.bodyLarge?.color,
+                color: emphasize
+                    ? AppColors.gold
+                    : theme.textTheme.bodyLarge?.color,
               ),
             ),
           ),
@@ -317,8 +367,11 @@ class _LockedStatsCard extends ConsumerWidget {
                     color: AppColors.gold.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.lock_outline_rounded,
-                      color: AppColors.gold, size: 20),
+                  child: const Icon(
+                    Icons.lock_outline_rounded,
+                    color: AppColors.gold,
+                    size: 20,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -335,9 +388,9 @@ class _LockedStatsCard extends ConsumerWidget {
             Text(
               session.isPending
                   ? 'سيظهر المبلغ الكلي وأعداد المشتركين والمتبرعين مباشرة بعد '
-                      'موافقة المدير على حسابك.'
+                        'موافقة المدير على حسابك.'
                   : 'يمكنك تصفّح المنشورات بحرية. لرؤية المبلغ الكلي وأعداد '
-                      'المشتركين والمتبرعين، أنشئ حساباً وانتظر موافقة المدير.',
+                        'المشتركين والمتبرعين، أنشئ حساباً وانتظر موافقة المدير.',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             if (!session.isPending) ...[
@@ -369,8 +422,9 @@ class _ListSkeleton extends StatelessWidget {
             height: 72,
             margin: const EdgeInsets.only(bottom: 10),
             decoration: BoxDecoration(
-              color: (isDark ? Colors.white : Colors.black)
-                  .withValues(alpha: 0.045),
+              color: (isDark ? Colors.white : Colors.black).withValues(
+                alpha: 0.045,
+              ),
               borderRadius: BorderRadius.circular(AppTheme.radius),
             ),
           ),
@@ -387,22 +441,24 @@ class _EmptyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: GlassCard(
-          padding: const EdgeInsets.symmetric(vertical: 34, horizontal: 20),
-          child: Center(
-            child: Column(
-              children: [
-                Icon(Icons.inbox_outlined,
-                    size: 34,
-                    color: Theme.of(context).textTheme.bodySmall?.color),
-                const SizedBox(height: 12),
-                Text(message, style: Theme.of(context).textTheme.bodyMedium),
-              ],
+    padding: const EdgeInsets.symmetric(horizontal: 16),
+    child: GlassCard(
+      padding: const EdgeInsets.symmetric(vertical: 34, horizontal: 20),
+      child: Center(
+        child: Column(
+          children: [
+            Icon(
+              Icons.inbox_outlined,
+              size: 34,
+              color: Theme.of(context).textTheme.bodySmall?.color,
             ),
-          ),
+            const SizedBox(height: 12),
+            Text(message, style: Theme.of(context).textTheme.bodyMedium),
+          ],
         ),
-      );
+      ),
+    ),
+  );
 }
 
 class _ErrorCard extends StatelessWidget {
@@ -413,22 +469,29 @@ class _ErrorCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: GlassCard(
-          padding: const EdgeInsets.all(22),
-          child: Column(
-            children: [
-              const Icon(Icons.wifi_off_rounded,
-                  size: 30, color: AppColors.overdue),
-              const SizedBox(height: 12),
-              Text(message,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyMedium),
-              const SizedBox(height: 14),
-              OutlinedButton(
-                  onPressed: onRetry, child: const Text('إعادة المحاولة')),
-            ],
+    padding: const EdgeInsets.symmetric(horizontal: 16),
+    child: GlassCard(
+      padding: const EdgeInsets.all(22),
+      child: Column(
+        children: [
+          const Icon(
+            Icons.wifi_off_rounded,
+            size: 30,
+            color: AppColors.overdue,
           ),
-        ),
-      );
+          const SizedBox(height: 12),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const SizedBox(height: 14),
+          OutlinedButton(
+            onPressed: onRetry,
+            child: const Text('إعادة المحاولة'),
+          ),
+        ],
+      ),
+    ),
+  );
 }
