@@ -90,6 +90,10 @@ update public.profiles
 ### ٣. تشغيل التطبيق
 
 ```bash
+# مرة واحدة بعد الاستنساخ: جلب خطوط Amiri
+powershell -ExecutionPolicy Bypass -File tools\fetch_fonts.ps1   # ويندوز
+bash tools/fetch_fonts.sh                                        # لينكس و macOS
+
 flutter pub get
 
 flutter run \
