@@ -36,6 +36,15 @@ void main() {
       'assets/fonts/Amiri-Regular.ttf',
       'assets/fonts/Amiri-Bold.ttf',
     ]);
+    // خط أيقونات Material من داخل Flutter SDK — بدونه تظهر الأيقونات
+    // مربّعات فارغة في المعاينة فيتعذّر الحكم على التصميم
+    final iconFont = File(
+      '${Platform.environment['FLUTTER_ROOT'] ?? '/agent/sdk/flutter'}'
+      '/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf',
+    );
+    if (iconFont.existsSync()) {
+      await _loadFont('MaterialIcons', [iconFont.path]);
+    }
   });
 
   for (final mode in [Brightness.dark, Brightness.light]) {
