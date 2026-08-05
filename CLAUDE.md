@@ -25,6 +25,10 @@
 ## ٢. أوامر سريعة
 
 ```bash
+# ⚠️ بعد استنساخ المستودع لأول مرة: اجلب خطوط Amiri
+bash tools/fetch_fonts.sh          # لينكس و macOS و CI
+powershell -ExecutionPolicy Bypass -File tools\fetch_fonts.ps1   # ويندوز
+
 # تشغيل بالبيانات الحقيقية
 flutter run \
   --dart-define=SUPABASE_URL=https://nmpcbyoehmghmietzurs.supabase.co \
@@ -265,7 +269,7 @@ update public.profiles set role = 'admin', status = 'approved'
 | **`diff` و `strings` غير مثبّتين** | استخدم `difflib` في بايثون، و `grep -a` على الملفات الثنائية. |
 | **R8 معطّل بقصد** | مكسبه ضئيل في تطبيق Flutter (معظم الحجم مكتبات أصلية) وقد يقطع الحزم التي تعتمد الانعكاس. لا تفعّله بلا اختبار على جهاز حقيقي. |
 | **جهاز المالك بلا سلسلة أدوات في PATH** | لا توجّهه لأوامر طرفية. **ابنِ الـAPK وسلّمه كملف.** |
-| **تكامل GitHub للقراءة فقط** | الدفع يفشل بـ `403 Resource not accessible by integration`. سلّم patch أو أرشيفاً بدل محاولة الدفع. |
+| **رفع الملفات الثنائية عبر أدوات GitHub الآلية يُفسدها** | `create_or_update_file` يرمّز المحتوى base64 بنفسه، فتمرير base64 إليه يرمّزه مرتين ويصل الملف تالفاً (خط 431KB وصل 574KB). **لا ترفع ملفاً ثنائياً بهذه الأداة.** استخدم سكربت جلب، أو اترك الرفع لـgit لدى المستخدم. |
 | **GitHub Actions موقوف** | حساب المالك مقفل لمسألة فواتير: `account is locked due to a billing issue`. ليس عطلاً في الكود. |
 
 ---
